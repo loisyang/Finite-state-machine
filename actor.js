@@ -5,15 +5,11 @@
 function Actor(props) {
   this.parent = null; //Set in the game.addActor method
   //TODO add additional properties for each eactor
-  var dflt = { 
-      height: 0,
-      width: 0,
-      x: 0,
-      y: 0,
-      img: null
-  };
-  props = mergeWithDefault(props, dflt);
-
+  this.height = props.height;
+  this.width = props.width;
+  this.x = props.x;
+  this.y = props.y;
+  this.img = props.img;
 };
 
 /**
@@ -32,6 +28,28 @@ Actor.prototype.setFSM = function(fsm) {
  */
 Actor.prototype.deliverEvent = function(event) {
   //TODO
+  // console.log(event.type);
+  var delivered = false;
+  var availableTransitions = this.currentState.transitions;
+  // console.log("availableTransitions");
+  // console.log(this);
+  // console.log(this.currentState);
+  // console.log(this.currentState.transitions);
+  for (var i in availableTransitions) {
+    var transition = availableTransitions[i];
+    // console.log("testing matchEvent");
+    // console.log(matchEvent(event,transition));
+    if  (matchEvent(event, transition)) {
+      delivered = true;
+      // console.log(this);
+      // console.log(this.currentState);
+      // console.log(transition);
+      // console.log("matched transition in actor:"+ this +" with currentState" + this.currentState + "is " + transition);
+      this.makeTransition(event, transition);
+      return delivered;
+    }
+  }
+  return delivered;
 }
 
 /**
@@ -40,6 +58,22 @@ Actor.prototype.deliverEvent = function(event) {
  */
 Actor.prototype.makeTransition = function(event, transition) {
   //TODO
+  var actions = transition.actions;
+  for (var actionIndex in actions) {
+    var action = actions[actionIndex];
+    var params = action.params;
+    var func = action.func;
+    func(event,params, this);
+  }
+  //reset current state
+  for (var i in this.states) {
+    var stateObj = this.states[i];
+    if (stateObj.name === transition.endState){
+      this.currentState = stateObj;
+    }
+  }
+  this.parent.onDraw();
+
 }
 
 /**
@@ -47,7 +81,7 @@ Actor.prototype.makeTransition = function(event, transition) {
  * @param {Context} The HTML5 canvas context object to be drawn on. 
  */
 Actor.prototype.draw = function(context) {
-  //TODO
+  context.drawImage(this.img, this.x, this.y, this.width, this.height);
 }
 
 /**
@@ -58,4 +92,20 @@ Actor.prototype.draw = function(context) {
  */ 
 var matchEvent = function(event, transition) {
   //TODO
+  // console.log("what is transition.predicate");
+  var predicate = transition.predicate;
+  // console.log(typeof(predicate));
+  // if ((transition.predicate === null) || (transition.predicate === true)){
+    if (event.type === transition.event){
+      if (event.type === "message"){
+        return transition.message === event.message;
+      } else if (event.type === "buttonpress"){
+        // console.log(event.target.id);
+        return transition.target === event.target.id;
+      } else{
+        return true;
+      }
+    } 
+  // }
+  return false;
 }

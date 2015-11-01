@@ -11,9 +11,14 @@ function Game(canvas) {
   this.grabPointX = 0;
   this.grabPointY = 0;
   this.actors = [];
+  this.isMouseDown = false;
   
-  // TODO Listen for events here and dispatch them 
 
+  // TODO Listen for events here and dispatch them 
+  document.addEventListener("mousedown", this.pointDispatch.bind(this));
+  document.addEventListener("mousemove", this.dispatchDragFocus.bind(this));
+  document.addEventListener("mouseup", this.dispatchDragFocus.bind(this));
+  document.getElementById("button0").addEventListener("buttonpress", this.dispatchToAll.bind(this));
 };
 
 
@@ -28,7 +33,7 @@ Game.prototype.addActor = function(actor) {
 }
 
 /**
- * ￼Find and return the list of actors whose bounds overlap the given rectangular area. 
+ *Find and return the list of actors whose bounds overlap the given rectangular area. 
  * The actors (if any) in the list should be in reverse drawing order. That is, the 
  * actors drawn later should appear earlier in the list.
  * @param {Integer} left position of the rectangle 
@@ -39,6 +44,21 @@ Game.prototype.addActor = function(actor) {
  */
 Game.prototype.actorsUnder = function(left, top, width, height) {
   //TODO
+  var inBoundActorsList = [];
+  for (var actorIndex in this.actors) {
+    var actor = this.actors[actorIndex];
+    actorTop = actor.y;
+    actorBottom = actor.y + actor.height;
+    actorLeft = actor.x;
+    actorRight = actor.x + actor.width;
+    right = left + width;
+    bottom = top + height
+    if (!( (actorLeft > right) || (actorRight < left) || (actorTop > bottom) || (actorBottom < top))) {
+      //newly added actor appears at the beginning of the actorslist.
+      inBoundActorsList = [actor].concat(inBoundActorsList); 
+    } 
+  }
+  return inBoundActorsList;
 }
 
 /**
@@ -51,6 +71,19 @@ Game.prototype.actorsUnder = function(left, top, width, height) {
  */
 Game.prototype.pointDispatch = function(event) {
   //TODO
+  var actorsList = this.actorsUnder(event.clientX,event.clientY,0,0);
+  console.log(actorsList);
+  for (var i in actorsList) {
+    var actor = actorsList[i];
+    if (actor.deliverEvent(event)){
+      console.log(actor);
+      if (event.type === "mousedown"){
+        this.isMouseDown = true;
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -68,16 +101,32 @@ Game.prototype.pointDispatch = function(event) {
  */
 Game.prototype.areaDispatch = function(area, event) {
   //TODO
+  var consumed = false;
+  var actorsList = this.actorsUnder(area.left,area.top,area.width,area.height);
+  for (var i in actorsList) {
+    var actor = actorsList[i];
+    if (actor.deliverEvent(event)){
+      consumed = true;
+      return consumed;
+    }
+  }
+  return consumed;
 }
 
 /**
- ￼* Dispatch the given event directly to the evt) given actor
+ * Dispatch the given event directly to the evt) given actor
  * @param {Event} Javascript event object (from an event handler)
  * @param {Actor} Actor to dispatch the vent to
  * @return {boolean} True if the event was consumed, false if it was not
  */
 Game.prototype.directDispatch = function(event, actor) {
   //TODO
+  var consumed = false;
+  if (actor.deliverEvent(event)) {
+    consumed = true;
+    return consumed;
+  }
+  return consumed;
 }
 
 /**
@@ -89,6 +138,15 @@ Game.prototype.directDispatch = function(event, actor) {
  */
 Game.prototype.dispatchToAll = function(event) {
   //TODO
+  var consumed = false;
+  for (var i in this.actors) {
+    var actor = this.actors[i];
+    if (actor.deliverEvent(event)){
+      consumed = true;
+      continue;
+    }
+  }
+  return consumed;
 }
 
 /**
@@ -99,6 +157,15 @@ Game.prototype.dispatchToAll = function(event) {
  */
 Game.prototype.dispatchTryAll = function(event) {
   //TODO
+  var consumed = false;
+  for (var i in this.actors) {
+    var actor = this.actors[i];
+    if (actor.deliverEvent(event)){
+      consumed = true;
+      return consumed;
+    }
+  }
+  return consumed;
 }
 
 /**
@@ -116,6 +183,42 @@ Game.prototype.dispatchTryAll = function(event) {
 
 Game.prototype.dispatchDragFocus = function(event) {
   //TODO
+  var consumed = false;
+  var actorsList = this.actorsUnder(event.clientX,event.clientY,0,0);
+  for (var i in actorsList) {
+    var actor = actorsList[i];
+    // distinguish drag events from mouse events:  
+    if (actor === this.dragFocus){
+      // from mousemove to dragmove
+      if ((event.type === "mousemove")&&(this.isMouseDown === true)){
+        var newEvent = new MouseEvent("dragmove",
+          {
+            clientX: event.clientX - this.grabPointX,
+            clientY: event.clientY - this.grabPointY
+          });
+        if (actor.deliverEvent(newEvent)) {
+          consumed = true;
+          return consumed;
+        } 
+      }
+      // from mouseup to dragend
+      else if (event.type === "mouseup"){
+        var newEvent = new MouseEvent("dragend",{});
+        if (actor.deliverEvent(newEvent)) {
+          consumed = true;
+          this.isMouseDown = false;
+          return consumed;
+        }
+      }
+    } 
+    // real mousemove and mouseup events:
+    else {
+      if (actor.deliverEvent(event)) {
+        return consumed;
+      }
+    }
+  }
+  return consumed;
 }
 
 /**
@@ -123,7 +226,13 @@ Game.prototype.dispatchDragFocus = function(event) {
  */
 Game.prototype.onDraw = function() {
   //TODO
+  this.context.clearRect(0,0,this.width,this.height)
+  for (var actor in this.actors){
+    this.actors[actor].draw(this.context);
+  }
+  return true;
 }
+
 
 /**
  * Provided method below this line
@@ -180,8 +289,8 @@ Game.prototype.newAnimation = function(movingActor, targetActor, endMessage, pas
     self.directDispatch({type: "animmove", offsetX: x, offsetY: y}, movingActor);
     if (passoverMessage) {
       self.areaDispatch({
-        top: movingActor.x,
-        left: movingActor.y, 
+        left: movingActor.x,
+        top: movingActor.y, 
         width: movingActor.width,
         height: movingActor.height
       }, {type: "message", message: passoverMessage});

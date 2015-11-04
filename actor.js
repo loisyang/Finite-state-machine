@@ -94,8 +94,7 @@ var matchEvent = function(event, transition) {
   //TODO
   // console.log("what is transition.predicate");
   var predicate = transition.predicate;
-  // console.log(typeof(predicate));
-  // if ((transition.predicate === null) || (transition.predicate === true)){
+  if ((predicate === undefined) || (event.shiftKey === true)){
     if (event.type === transition.event){
       if (event.type === "message"){
         return transition.message === event.message;
@@ -106,6 +105,6 @@ var matchEvent = function(event, transition) {
         return true;
       }
     } 
-  // }
+  }
   return false;
 }

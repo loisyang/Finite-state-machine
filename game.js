@@ -18,7 +18,7 @@ function Game(canvas) {
   document.addEventListener("mousedown", this.pointDispatch.bind(this));
   document.addEventListener("mousemove", this.dispatchDragFocus.bind(this));
   document.addEventListener("mouseup", this.dispatchDragFocus.bind(this));
-  document.getElementById("button0").addEventListener("buttonpress", this.dispatchToAll.bind(this));
+
 };
 
 
